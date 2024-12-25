@@ -1,6 +1,7 @@
 .custom-email-form {
     background: #fff;
     padding: 20px;
+    padding-right: 40px;
     border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
@@ -17,15 +18,17 @@
     padding: 10px 0;
 }
 .custom-email-form .button-primary {
-    background: #0073aa;
+    background: #fb4c0c;
     color: #fff;
     border: none;
-    padding: 10px 20px;
+    padding: 10px 40px;
+    font-size: 18px;
+    line-height: 1;
     border-radius: 5px;
     cursor: pointer;
 }
 .custom-email-form .button-primary:hover {
-    background: #005177;
+    background: #fd8155;
 }
 .form-submit-wrapper {
     margin-top: 20px;

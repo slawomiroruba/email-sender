@@ -1,27 +1,18 @@
 jQuery(document).ready(function ($) {
     $('#upload_logo_button').on('click', function (e) {
         e.preventDefault();
-        var mediaUploader;
 
-        // Jeśli uploader już istnieje, otwórz go ponownie
-        if (mediaUploader) {
-            mediaUploader.open();
-            return;
-        }
-
-        // Tworzenie nowej instancji wp.media
-        mediaUploader = wp.media({
-            title: 'Wybierz logo', // Tytuł okna
+        var mediaUploader = wp.media({
+            title: 'Wybierz logo',
             button: {
-                text: 'Użyj tego logo' // Tekst przycisku
+                text: 'Użyj tego logo'
             },
-            multiple: false // Wybór jednego pliku
+            multiple: false
         });
 
-        // Po wybraniu pliku
         mediaUploader.on('select', function () {
             var attachment = mediaUploader.state().get('selection').first().toJSON();
-            $('#custom_email_logo').val(attachment.url); // Ustaw URL w polu tekstowym
+            $('#custom_email_logo').val(attachment.url);
         });
 
         mediaUploader.open();

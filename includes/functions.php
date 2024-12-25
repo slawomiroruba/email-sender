@@ -25,72 +25,23 @@ function custom_email_sender_menu() {
     );
 }
 
-// Strona ustawień wtyczki
-function custom_email_sender_settings_page() {
-    if (!current_user_can('manage_options')) {
-        return;
-    }
-
-    // Zapisanie wybranego logo
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['custom_email_logo'])) {
-        $logo_url = esc_url_raw($_POST['custom_email_logo']);
-        update_option('custom_email_logo', $logo_url);
-        echo '<div class="updated"><p>Logo zostało zapisane!</p></div>';
-    }
-
-    // Pobranie aktualnie zapisanego logo
-    $current_logo = get_option('custom_email_logo', '');
-
-    // Formularz ustawień
-    echo '<div class="wrap">
-        <h1>Ustawienia e-maila</h1>
-        <form method="POST" action="">
-            <table class="form-table">
-                <tr>
-                    <th><label for="custom_email_logo">Logo (URL):</label></th>
-                    <td>
-                        <input type="text" name="custom_email_logo" id="custom_email_logo" value="' . esc_attr(get_option('custom_email_logo')) . '" class="regular-text">
-                        <button type="button" class="button" id="upload_logo_button">Wybierz z mediów</button>
-                    </td>
-                </tr>
-            </table>
-            <p class="submit">
-                <input type="submit" value="Zapisz" class="button button-primary">
-            </p>
-        </form>
-    </div>';
-
-}
-
-
-// Ładowanie skryptów do strony ustawień
-add_action('admin_enqueue_scripts', 'custom_email_sender_enqueue_media_scripts');
-function custom_email_sender_enqueue_media_scripts($hook) {
-    // Sprawdź, czy jesteś na odpowiedniej stronie wtyczki
-    if ($hook === 'custom-email-sender_page_custom-email-sender-settings') {
-        wp_enqueue_media(); // Ładowanie skryptów WordPress Media Library
-        wp_enqueue_script(
-            'custom-email-media-script', // Nazwa skryptu
-            plugin_dir_url(__FILE__) . 'assets/media-script.js', // Ścieżka do pliku JS
-            array('jquery'), // Zależności
-            false,
-            true // Ładowanie w stopce
-        );
-    }
-}
-
-
-// Funkcja generująca treść strony w panelu admina
 function custom_email_sender_page() {
     if (!current_user_can('manage_options')) {
         return;
     }
 
-    // Formularz do wysyłania e-maila
+    // Sprawdzenie, czy w URL jest parametr "sent"
+    if (isset($_GET['sent']) && $_GET['sent'] == 1) {
+        echo '<div class="notice notice-success is-dismissible">
+            <p>E-mail został wysłany pomyślnie!</p>
+        </div>';
+    }
+
     echo '<div class="wrap custom-email-form" style="max-width:800px;">
         <h1>Wyślij e-mail</h1>
         <form method="POST" action="' . admin_url('admin-post.php') . '">
             <input type="hidden" name="action" value="send_custom_email">
+            ' . wp_nonce_field('send_custom_email_action', 'custom_email_nonce', true, false) . '
             <table class="form-table">
                 <tr>
                     <th><label for="custom_email_to">Do:</label></th>
@@ -114,37 +65,108 @@ function custom_email_sender_page() {
     </div>';
 }
 
-// Obsługa wysyłania e-maila
+
+add_action('admin_enqueue_scripts', 'custom_email_sender_enqueue_media_scripts');
+function custom_email_sender_enqueue_media_scripts($hook) {
+    // Pobierz nazwę strony z parametru "page"
+    $current_page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : '';
+
+    // Sprawdź, czy aktualna strona to "custom-email-sender-settings"
+    if ($current_page === 'custom-email-sender-settings') {
+        wp_enqueue_media(); // Ładowanie skryptów WordPress Media Library
+        wp_enqueue_script(
+            'custom-email-media-script',
+            plugin_dir_url(__DIR__) . 'assets/media-script.js',
+            array('jquery'), // Zależności
+            false,
+            true // Ładowanie w stopce
+        );
+    }
+}
+
+
+
+
+function custom_email_sender_settings_page() {
+    if (!current_user_can('manage_options')) {
+        return;
+    }
+
+    // Obsługa zapisu
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['custom_email_logo'])) {
+        if (!isset($_POST['custom_email_nonce']) || !wp_verify_nonce($_POST['custom_email_nonce'], 'save_email_settings')) {
+            wp_die('Nieprawidłowy odnośnik. Spróbuj ponownie.');
+        }
+
+        $logo_url = esc_url_raw($_POST['custom_email_logo']);
+        update_option('custom_email_logo', $logo_url);
+
+        echo '<div class="updated"><p>Logo zostało zapisane!</p></div>';
+    }
+
+    $current_logo = get_option('custom_email_logo', '');
+
+    // Formularz
+    echo '<div class="wrap">
+        <h1>Ustawienia e-maila</h1>
+        <form method="POST" action="">
+            ' . wp_nonce_field('save_email_settings', 'custom_email_nonce', true, false) . '
+            <table class="form-table">
+                <tr>
+                    <th><label for="custom_email_logo">Logo (URL):</label></th>
+                    <td>
+                        <input type="text" name="custom_email_logo" id="custom_email_logo" value="' . esc_attr($current_logo) . '" class="regular-text">
+                        <button type="button" class="button" id="upload_logo_button">Wybierz z mediów</button>
+                    </td>
+                </tr>
+            </table>
+            <p class="submit">
+                <input type="submit" value="Zapisz" class="button button-primary">
+            </p>
+        </form>
+    </div>';
+}
+
 function custom_email_sender_process_form() {
     if (!current_user_can('manage_options')) {
         wp_die('Brak dostępu.');
+    }
+
+    if (!isset($_POST['custom_email_nonce']) || !wp_verify_nonce($_POST['custom_email_nonce'], 'send_custom_email_action')) {
+        wp_die('Nieprawidłowy odnośnik. Spróbuj ponownie.');
     }
 
     $to             = sanitize_email($_POST['custom_email_to']);
     $subject        = sanitize_text_field($_POST['custom_email_subject']);
     $messageContent = wp_kses_post($_POST['custom_email_content']);
 
-    // Wczytanie szablonu e-maila
+    if (empty($subject) || empty($messageContent)) {
+        wp_die('Brak tematu lub treści wiadomości. Proszę wypełnić oba pola.');
+    }
+
     ob_start();
     include plugin_dir_path(__FILE__) . '../templates/email-template.php';
-    $message = ob_get_clean();
+    $template = ob_get_clean();
 
-    // Zamiana placeholderów w szablonie
+    // Zamiana placeholderów na dynamiczne treści
     $message = str_replace(
-        array('{{subject}}', '{{content}}'),
-        array($subject, $messageContent),
-        $message
+        ['{{subject}}', '{{content}}'],
+        [esc_html($subject), wpautop($messageContent)],
+        $template
     );
 
-    // Nagłówki
-    $headers = array('Content-Type: text/html; charset=UTF-8');
+    $headers = ['Content-Type: text/html; charset=UTF-8'];
 
-    // Wysłanie e-maila
-    wp_mail($to, $subject, $message, $headers);
-
-    wp_redirect(admin_url('admin.php?page=custom-email-sender&sent=1'));
-    exit;
+    // Wysłanie wiadomości e-mail
+    if (wp_mail($to, $subject, $message, $headers)) {
+        wp_redirect(admin_url('admin.php?page=custom-email-sender&sent=1'));
+        exit;
+    } else {
+        wp_die('Wystąpił błąd podczas wysyłania e-maila. Spróbuj ponownie.');
+    }
 }
+
+
 
 // Funkcja aktywacji wtyczki
 function custom_email_sender_activation() {
