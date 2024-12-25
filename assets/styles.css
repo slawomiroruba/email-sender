@@ -2,28 +2,20 @@
     background: #fff;
     padding: 20px;
     border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    /* Jeśli chcesz zawęzić formularz w CSS zamiast inline, to możesz dodać: 
-       max-width: 800px; 
-       margin: 0 auto; 
-    */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
-
 .custom-email-form h1 {
     color: #333;
     margin-bottom: 20px;
 }
-
 .custom-email-form .form-table th {
     text-align: left;
     font-weight: bold;
     padding: 10px 0;
 }
-
 .custom-email-form .form-table td {
     padding: 10px 0;
 }
-
 .custom-email-form .button-primary {
     background: #0073aa;
     color: #fff;
@@ -32,13 +24,10 @@
     border-radius: 5px;
     cursor: pointer;
 }
-
 .custom-email-form .button-primary:hover {
     background: #005177;
 }
-
-/* Nowa klasa dla przycisku */
 .form-submit-wrapper {
     margin-top: 20px;
-    text-align: right; /* Możesz ustawić center albo left, zależnie od efektu */
+    text-align: right;
 }
