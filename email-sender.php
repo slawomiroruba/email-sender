@@ -46,9 +46,6 @@ function custom_email_sender_page() {
         $subject        = sanitize_text_field($_POST['custom_email_subject']);
         $messageContent = wp_kses_post($_POST['custom_email_content']);
 
-        // Ręczne zakodowanie tematu w Base64 (dla pewności wyświetlania emotek)
-        $encoded_subject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
-
         // Wczytanie szablonu e-maila
         ob_start();
         include plugin_dir_path(__FILE__) . 'email-template.php';
@@ -65,7 +62,7 @@ function custom_email_sender_page() {
         $headers = array('Content-Type: text/html; charset=UTF-8');
 
         // Wysłanie e-maila (temat musi być $encoded_subject)
-        wp_mail($to, $encoded_subject, $message, $headers);
+        wp_mail($to, $subject, $message, $headers);
 
         echo '<div class="updated"><p>E-mail został wysłany!</p></div>';
     }
