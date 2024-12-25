@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Plugin Name: Custom Email Sender
  * Description: Prosty klient pocztowy w WordPress z możliwością korzystania z własnego szablonu e-maila.
@@ -8,30 +7,27 @@
  */
 
 // Wymuszenie UTF-8 dla wszystkich maili w WordPress
-add_filter('wp_mail_charset', function ($charset) {
+add_filter( 'wp_mail_charset', function( $charset ) {
     return 'UTF-8';
 });
 
 // Dodanie menu w panelu admina
 add_action('admin_menu', 'custom_email_sender_menu');
-function custom_email_sender_menu()
-{
+function custom_email_sender_menu() {
     add_menu_page(
-        'Wyślij e-mail',            // Tytuł strony w panelu
-        'Wyślij e-mail',            // Tekst w menu
-        'manage_options',           // Uprawnienia (kto może zobaczyć)
-        'custom-email-sender',      // Slug (URL) w panelu
-        'custom_email_sender_page', // Callback do wyświetlania strony
-        'dashicons-email-alt',      // Ikona w menu
-        6                           // Pozycja w menu
+        'Wyślij e-mail', 
+        'Wyślij e-mail',
+        'manage_options',
+        'custom-email-sender',
+        'custom_email_sender_page',
+        'dashicons-email-alt',
+        6
     );
 }
 
 // Dodanie stylów CSS tylko na stronie wtyczki
 add_action('admin_enqueue_scripts', 'custom_email_sender_enqueue_styles');
-function custom_email_sender_enqueue_styles($hook)
-{
-    // Sprawdzamy, czy jesteśmy na odpowiedniej podstronie (toplevel_page_custom-email-sender)
+function custom_email_sender_enqueue_styles($hook) {
     if ($hook !== 'toplevel_page_custom-email-sender') {
         return;
     }
@@ -39,9 +35,7 @@ function custom_email_sender_enqueue_styles($hook)
 }
 
 // Funkcja generująca treść strony w panelu admina
-function custom_email_sender_page()
-{
-    // Sprawdzenie uprawnień
+function custom_email_sender_page() {
     if (!current_user_can('manage_options')) {
         return;
     }
@@ -52,7 +46,7 @@ function custom_email_sender_page()
         $subject        = sanitize_text_field($_POST['custom_email_subject']);
         $messageContent = wp_kses_post($_POST['custom_email_content']);
 
-        // RĘCZNE zakodowanie tematu w UTF-8 Base64:
+        // Ręczne zakodowanie tematu w Base64 (dla pewności wyświetlania emotek)
         $encoded_subject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
 
         // Wczytanie szablonu e-maila
@@ -67,10 +61,10 @@ function custom_email_sender_page()
             $message
         );
 
-        // Wysłanie e-maila z poprawnym nagłówkiem
+        // Nagłówki
         $headers = array('Content-Type: text/html; charset=UTF-8');
 
-        // Uwaga: w wp_mail() zamiast $subject, użyj $encoded_subject
+        // Wysłanie e-maila (temat musi być $encoded_subject)
         wp_mail($to, $encoded_subject, $message, $headers);
 
         echo '<div class="updated"><p>E-mail został wysłany!</p></div>';
@@ -92,11 +86,11 @@ function custom_email_sender_page()
                 <tr>
                     <th><label for="custom_email_content">Treść:</label></th>
                     <td>';
-    wp_editor('', 'custom_email_content', ['textarea_name' => 'custom_email_content']);
-    echo '          </td>
+                        wp_editor('', 'custom_email_content', ['textarea_name' => 'custom_email_content']);
+    echo '      </td>
                 </tr>
             </table>
-           <div class="form-submit-wrapper">
+            <div class="form-submit-wrapper">
                 <input type="submit" name="custom_email_send" id="custom_email_send" class="button button-primary" value="Wyślij">
             </div>
         </form>
@@ -105,19 +99,16 @@ function custom_email_sender_page()
 
 // Funkcja aktywacji wtyczki – tworzy plik szablonu i plik CSS, jeśli nie istnieją
 register_activation_hook(__FILE__, 'custom_email_sender_activation');
-function custom_email_sender_activation()
-{
-    // Tworzymy domyślny szablon, jeśli nie istnieje
+function custom_email_sender_activation() {
     $template_file = plugin_dir_path(__FILE__) . 'email-template.php';
     if (!file_exists($template_file)) {
-        $default_template = "<html>\n<head>\n    <title>{{subject}}</title>\n</head>\n<body>\n    <div>{{content}}</div>\n</body>\n</html>";
+        $default_template = "<html>\n<head>\n    <title>{{subject}}</title>\n    <meta charset=\"UTF-8\">\n</head>\n<body>\n    <div>{{content}}</div>\n</body>\n</html>";
         file_put_contents($template_file, $default_template);
     }
 
-    // Tworzymy domyślny plik CSS, jeśli nie istnieje
     $css_file = plugin_dir_path(__FILE__) . 'styles.css';
     if (!file_exists($css_file)) {
-        $default_css = ".custom-email-form {\n    background: #fff;\n    padding: 20px;\n    border-radius: 8px;\n    box-shadow: 0 2px 5px rgba(0,0,0,0.1);\n}\n.custom-email-form h1 {\n    color: #333;\n    margin-bottom: 20px;\n}\n.custom-email-form .form-table th {\n    text-align: left;\n    font-weight: bold;\n    padding: 10px 0;\n}\n.custom-email-form .form-table td {\n    padding: 10px 0;\n}\n.custom-email-form .button-primary {\n    background: #0073aa;\n    color: #fff;\n    border: none;\n    padding: 10px 20px;\n    border-radius: 5px;\n    cursor: pointer;\n}\n.custom-email-form .button-primary:hover {\n    background: #005177;\n}";
+        $default_css = ".custom-email-form {\n    background: #fff;\n    padding: 20px;\n    border-radius: 8px;\n    box-shadow: 0 2px 5px rgba(0,0,0,0.1);\n}\n.custom-email-form h1 {\n    color: #333;\n    margin-bottom: 20px;\n}\n.custom-email-form .form-table th {\n    text-align: left;\n    font-weight: bold;\n    padding: 10px 0;\n}\n.custom-email-form .form-table td {\n    padding: 10px 0;\n}\n.custom-email-form .button-primary {\n    background: #0073aa;\n    color: #fff;\n    border: none;\n    padding: 10px 20px;\n    border-radius: 5px;\n    cursor: pointer;\n}\n.custom-email-form .button-primary:hover {\n    background: #005177;\n}\n.form-submit-wrapper {\n    margin-top: 20px;\n    text-align: right;\n}";
         file_put_contents($css_file, $default_css);
     }
 }
