@@ -37,6 +37,10 @@ function custom_email_sender_page() {
         </div>';
     }
 
+    $timezone = get_option('timezone_string') ? new DateTimeZone(get_option('timezone_string')) : wp_timezone();
+    $current_time = new DateTime('now', $timezone);
+
+
     echo '<div class="wrap custom-email-form" style="max-width:800px;">
         <h1>Wyślij e-mail</h1>
         <form method="POST" action="' . admin_url('admin-post.php') . '">
@@ -48,14 +52,28 @@ function custom_email_sender_page() {
                     <td><input type="email" name="custom_email_to" id="custom_email_to" class="regular-text" required></td>
                 </tr>
                 <tr>
+                    <th><label for="custom_email_schedule">Zaplanuj wysyłkę:</label></th>
+                    <td><input type="datetime-local" name="custom_email_schedule" id="custom_email_schedule" class="regular-text" value="' . $current_time->format('Y-m-d\TH:i') . '">
+                        <p class="description">Pozostaw puste, aby wysłać e-mail natychmiast.</p>
+                    </td>
+                </tr>
+
+                <tr>
                     <th><label for="custom_email_subject">Temat:</label></th>
                     <td><input type="text" name="custom_email_subject" id="custom_email_subject" class="regular-text" required></td>
                 </tr>
                 <tr>
                     <th><label for="custom_email_content">Treść:</label></th>
                     <td>';
-                        wp_editor('', 'custom_email_content', ['textarea_name' => 'custom_email_content']);
-    echo '      </td>
+                    wp_editor('', 'custom_email_content', [
+                        'textarea_name' => 'custom_email_content',
+                        'teeny' => false,
+                        'quicktags' => true,
+                        'tinymce' => [
+                            'forced_root_block' => 'p', // Wymusza domyślne dodawanie <p>
+                        ]
+                    ]);
+                    echo '</td>
                 </tr>
             </table>
             <div class="form-submit-wrapper">
@@ -83,9 +101,6 @@ function custom_email_sender_enqueue_media_scripts($hook) {
         );
     }
 }
-
-
-
 
 function custom_email_sender_settings_page() {
     if (!current_user_can('manage_options')) {
@@ -127,6 +142,46 @@ function custom_email_sender_settings_page() {
     </div>';
 }
 
+function custom_wp_mail($to, $subject, $messageContent, $headers = '', $attachments = []) {
+
+    // Sprawdź czy $to, $subject i $message nie są puste
+    if (empty($to) || empty($subject) || empty($messageContent)) {
+        return false;
+    }
+
+    $messageContent = wp_specialchars_decode($messageContent, ENT_QUOTES);
+
+
+    error_log('Decoded message: ' . $messageContent);
+
+    ob_start();
+    include plugin_dir_path(__FILE__) . '../templates/email-template.php';
+    $template = ob_get_clean();
+
+    // Zastąp placeholdery
+    $message = str_replace(
+        ['{{to}}', '{{subject}}', '{{content}}', '{{logo}}'],
+        [$to, $subject, $messageContent, get_option('custom_email_logo', '')],
+        $template
+    );
+
+    if (is_array($headers)) {
+        $headers = array_merge($headers, ['Content-Type: text/html; charset=UTF-8']);
+    } else {
+        $headers = ['Content-Type: text/html; charset=UTF-8'];
+    }
+
+    $sent = wp_mail($to, $subject, $message, $headers);
+
+    // logowanie błędów  i powodu niepowodzenia
+    if (!$sent) {
+        error_log('Nie udało się wysłać wiadomości e-mail.');
+    }
+
+    return $sent;
+
+}
+
 function custom_email_sender_process_form() {
     if (!current_user_can('manage_options')) {
         wp_die('Brak dostępu.');
@@ -138,35 +193,49 @@ function custom_email_sender_process_form() {
 
     $to             = sanitize_email($_POST['custom_email_to']);
     $subject        = sanitize_text_field($_POST['custom_email_subject']);
-    $messageContent = wp_kses_post($_POST['custom_email_content']);
+    $messageContent = wpautop(wp_kses_post($_POST['custom_email_content']));
+    $scheduleTime   = sanitize_text_field($_POST['custom_email_schedule']);
 
     if (empty($subject) || empty($messageContent)) {
         wp_die('Brak tematu lub treści wiadomości. Proszę wypełnić oba pola.');
     }
 
-    ob_start();
-    include plugin_dir_path(__FILE__) . '../templates/email-template.php';
-    $template = ob_get_clean();
+    if (!empty($scheduleTime)) {
+        // Przekształć czas lokalny na UTC
+        $local_timestamp = strtotime($scheduleTime);
+        $utc_offset = get_option('gmt_offset') * HOUR_IN_SECONDS;
+        $utc_timestamp = $local_timestamp - $utc_offset;
 
-    // Zamiana placeholderów na dynamiczne treści
-    $message = str_replace(
-        ['{{subject}}', '{{content}}'],
-        [esc_html($subject), wpautop($messageContent)],
-        $template
-    );
+        error_log('Local time: ' . date('Y-m-d H:i:s', $local_timestamp));
+        error_log('UTC offset: ' . get_option('gmt_offset'));
+        error_log('UTC time: ' . date('Y-m-d H:i:s', $utc_timestamp));
 
+        if ($utc_timestamp && $utc_timestamp > time()) {
+            $encodedMessage = htmlspecialchars($messageContent, ENT_QUOTES, 'UTF-8');
+
+            error_log('Encoded message: ' . $encodedMessage);
+            wp_schedule_single_event($utc_timestamp, 'custom_email_sender_scheduled_event', [
+                $to,
+                $subject,
+                $encodedMessage
+            ]);
+
+            wp_redirect(add_query_arg(['sent' => 1], admin_url('admin.php?page=custom-email-sender')));
+            exit;
+        }
+    }
+
+    // Natychmiastowa wysyłka
     $headers = ['Content-Type: text/html; charset=UTF-8'];
+    $mailSent = custom_wp_mail($to, $subject, $messageContent, $headers);
 
-    // Wysłanie wiadomości e-mail
-    if (wp_mail($to, $subject, $message, $headers)) {
-        wp_redirect(admin_url('admin.php?page=custom-email-sender&sent=1'));
+    if ($mailSent) {
+        wp_redirect(add_query_arg(['sent' => 1], admin_url('admin.php?page=custom-email-sender')));
         exit;
     } else {
-        wp_die('Wystąpił błąd podczas wysyłania e-maila. Spróbuj ponownie.');
+        wp_die('Nie udało się wysłać wiadomości. Spróbuj ponownie.');
     }
 }
-
-
 
 // Funkcja aktywacji wtyczki
 function custom_email_sender_activation() {

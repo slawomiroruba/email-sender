@@ -31,12 +31,8 @@
             padding: 20px;
             color: #333333;
             line-height: 1.6;
-            white-space: pre-wrap;
+            white-space: normal; /* Zapewnia prawidłowe wyświetlanie formatowania */
         }
-        .email-body p {
-            margin: 0px;
-        }
-
         .email-footer {
             background-color: #f9f9f9;
             text-align: center;
@@ -58,14 +54,14 @@
 <body>
     <div class="email-container">
         <div class="email-header">
-            <p>{{subject}}</p>
+            <img src="{{logo}}" alt="Logo" style="max-width: 100px; height: auto; margin-bottom: 10px;">
         </div>
         <div class="email-body">
             {{content}}
         </div>
         <div class="email-footer">
             <p>Dziękujemy za bycie z nami!</p>
-            <a href="https://umk.jacekwalkiewicz.pl" target="_blank">Odwiedź naszą stronę</a>
+            <a href="<?php echo esc_url(home_url()); ?>">Odwiedź naszą stronę</a>
         </div>
     </div>
 </body>
