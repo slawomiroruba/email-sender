@@ -1,0 +1,38 @@
+.custom-email-form {
+    background: #fff;
+    padding: 20px;
+    padding-right: 40px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+.custom-email-form h1 {
+    color: #333;
+    margin-bottom: 20px;
+}
+.custom-email-form .form-table th {
+    text-align: left;
+    font-weight: bold;
+    padding: 10px 0;
+}
+.custom-email-form .form-table td {
+    padding: 10px 0;
+}
+.custom-email-form .button-primary {
+    background: #fb4c0c;
+    color: #fff;
+    border: none;
+    padding: 10px 40px;
+    font-size: 18px;
+    line-height: 1;
+    width: 100%; 
+    max-width: 600px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.custom-email-form .button-primary:hover {
+    background: #fd8155;
+}
+.form-submit-wrapper {
+    margin-top: 20px;
+    text-align: right;
+}
