@@ -261,7 +261,6 @@ function custom_email_sender_process_form() {
                     $encodedMessage
                 ]);
             }
-
             wp_redirect(add_query_arg(['sent' => 1], admin_url('admin.php?page=custom-email-sender')));
             exit;
         }
